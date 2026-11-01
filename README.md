@@ -1,0 +1,186 @@
+# crabmc-server
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/rust-lang/rust-artwork/master/logo/rust-logo-512x512.png" alt="CrabMC Logo" width="120" height="120" />
+</p>
+
+<p align="center">
+  <strong>High-performance, modern Minecraft Server written in Rust, inspired by PaperMC architecture.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/myzert/crabmc-server/actions"><img src="https://img.shields.io/github/actions/workflow/status/myzert/crabmc-server/ci.yml?branch=main&label=CI" alt="CI Status" /></a>
+  <a href="https://github.com/myzert/crabmc-server/releases"><img src="https://img.shields.io/github/v/release/myzert/crabmc-server?label=Release" alt="Latest Release" /></a>
+  <img src="https://img.shields.io/badge/Minecraft-1.20.4-brightgreen.svg" alt="Minecraft 1.20.4" />
+  <img src="https://img.shields.io/badge/Rust-1.75%2B-orange.svg" alt="Rust Version" />
+  <img src="https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg" alt="License" />
+</p>
+
+---
+
+## 📖 Apa itu CrabMC?
+
+**CrabMC** adalah implementasi server Minecraft Java Edition berkinerja tinggi yang ditulis dari nol menggunakan bahasa pemrograman **Rust** dengan mengadopsi prinsip dan arsitektur dari **PaperMC**.
+
+### 💡 Mengapa Rust bukannya Java (.jar)?
+- **Tanpa JVM Overhead**: PaperMC biasa berjalan di atas Java Virtual Machine (JVM) yang membutuhkan ratusan MB hingga GB RAM hanya untuk runtime. CrabMC langsung dikompilasi menjadi **native binary** yang ultra-ringan (~10-20 MB RAM saat idle!).
+- **Startup Instan**: Mulai server dalam hitungan milidetik, bukan puluhan detik.
+- **Memory Safety & No GC Spikes**: Rust menjamin keamanan memori tanpa Garbage Collector (GC), sehingga bebas dari micro-stutter atau lag spike saat GC sweeping.
+- **Multi-Threading Asinkron**: Didukung oleh runtime `tokio` untuk menangani ribuan koneksi paket jaringan secara non-blocking.
+
+> [!NOTE]
+> **Mengenai File JAR vs Native Binary:**
+> PaperMC berbasis Java (.jar) yang dijalankan dengan `java -jar paper.jar`. CrabMC ditulis dengan **Rust**, sehingga hasil kompilasinya bukan berupa file `.jar` melainkan **native executable binary** (misalnya `./crabmc-server` di Linux/Android atau `crabmc-server.exe` di Windows). Anda **tidak perlu menginstall Java** sama sekali untuk menjalankan CrabMC!
+> Release multi-platform untuk Linux (x86_64, aarch64), Windows, dan macOS otomatis dibuild melalui **GitHub Actions**.
+
+---
+
+## ✨ Fitur Utama
+
+- [x] **Minecraft Protocol 1.20.4 (Protocol 765)**:
+  - VarInt & Minecraft String codec standar.
+  - Handshake protocol parsing.
+  - Server List Ping (SLP) status response lengkap (MOTD warna, player count, custom version).
+  - Ping / Pong latency calculation.
+  - Login state handler & handshake validation.
+- [x] **Konfigurasi `server.properties` Lengkap**:
+  - Kompatibel dengan sintaks `server.properties` standar PaperMC & Vanilla.
+  - Auto-generate default configuration jika file belum ada.
+  - Opsi: `server-ip`, `server-port`, `motd`, `max-players`, `online-mode`, `view-distance`, `simulation-distance`, `pvp`, `gamemode`, `difficulty`, dan lainnya.
+- [x] **Sistem Plugin Modular**:
+  - Plugin lifecycle: `on_enable`, `on_disable`, dan command dispatcher `on_command`.
+  - Built-in plugin contoh (`CrabEssentials`) untuk demonstrasi.
+  - Folder `plugins/` terstruktur dengan data folder per plugin.
+- [x] **Console Interaktif**:
+  - Perintah bawaan: `help`, `plugins`, `version`, `ping`, `crab`, `stop`.
+  - Logging format bergaya PaperMC (`[INFO]: ...`).
+- [x] **Automasi CI/CD GitHub Actions**:
+  - CI workflow untuk syntax checking, linting (`clippy`), format checking, dan automated unit tests.
+  - Release workflow untuk build cross-platform binary otomatis setiap push Git Tag `v*`.
+
+---
+
+## 🚀 Cara Menjalankan
+
+### Opsi 1: Download dari GitHub Actions Release
+1. Masuk ke tab [Releases](https://github.com/myzert/crabmc-server/releases).
+2. Download binary yang sesuai dengan sistem operasi Anda:
+   - Linux x86_64: `crabmc-server-linux-x86_64`
+   - Linux ARM64 (Termux / Raspberry Pi): `crabmc-server-linux-aarch64`
+   - Windows: `crabmc-server-windows-x86_64.exe`
+   - macOS: `crabmc-server-macos-x86_64` / `crabmc-server-macos-aarch64`
+3. Berikan permission eksekusi (Linux/macOS) dan jalankan:
+   ```bash
+   chmod +x crabmc-server*
+   ./crabmc-server
+   ```
+
+### Opsi 2: Build Manual dari Source Code
+
+Pastikan Anda telah menginstal Rust toolchain (`cargo` & `rustc`):
+
+```bash
+# Clone repository
+git clone https://github.com/myzert/crabmc-server.git
+cd crabmc-server
+
+# Jalankan dalam mode Development
+cargo run
+
+# Atau kompilasi mode Release optimal
+cargo build --release
+./target/release/crabmc-server
+```
+
+---
+
+## ⚙️ Konfigurasi (`server.properties`)
+
+Saat pertama kali dijalankan, CrabMC akan otomatis membuat file `server.properties`:
+
+```properties
+# Minecraft server properties
+# Auto-generated by CrabMC (Rust)
+# https://github.com/myzert/crabmc-server
+server-ip=0.0.0.0
+server-port=25565
+motd=\u00A7bA CrabMC Minecraft Server \u00A77(Rust Powered)
+max-players=20
+online-mode=false
+view-distance=10
+simulation-distance=10
+enable-status=true
+network-compression-threshold=256
+pvp=true
+difficulty=easy
+gamemode=survival
+white-list=false
+```
+
+---
+
+## 🔌 Pembuatan Plugin (Plugin API)
+
+Di CrabMC, plugin mengimplementasikan trait `CrabPlugin`:
+
+```rust
+use crabmc_server::plugin::{CrabPlugin, PluginContext};
+
+pub struct MyPlugin;
+
+impl CrabPlugin for MyPlugin {
+    fn name(&self) -> &str {
+        "MyAwesomePlugin"
+    }
+
+    fn version(&self) -> &str {
+        "1.0.0"
+    }
+
+    fn on_enable(&mut self, ctx: &PluginContext) -> anyhow::Result<()> {
+        println!("Plugin enabled on CrabMC version {}", ctx.server_version);
+        Ok(())
+    }
+
+    fn on_disable(&mut self) -> anyhow::Result<()> {
+        println!("Plugin disabled cleanly.");
+        Ok(())
+    }
+
+    fn on_command(&mut self, sender: &str, command: &str, args: &[&str]) -> bool {
+        if command == "halo" {
+            println!("Halo {}!", sender);
+            return true;
+        }
+        false
+    }
+}
+```
+
+---
+
+## 🛠️ Perintah Console
+
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `help` | Menampilkan daftar perintah yang tersedia |
+| `plugins` / `pl` | Menampilkan plugin yang sedang aktif |
+| `version` / `ver` | Menampilkan versi CrabMC dan protokol Minecraft |
+| `ping` | Mengetes respon dispatcher plugin `CrabEssentials` |
+| `crab` | Perintah maskot CrabMC 🦀 |
+| `stop` | Mematikan server secara aman (*graceful shutdown*) |
+
+---
+
+## 🧪 Menjalankan Test
+
+```bash
+cargo test
+```
+
+---
+
+## 📄 Lisensi
+
+Proyek ini dilisensikan di bawah lisensi MIT atau Apache-2.0.
+Dibuat dengan ❤️ oleh [myzert](https://github.com/myzert).
