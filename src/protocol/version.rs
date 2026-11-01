@@ -4,10 +4,11 @@ pub struct MinecraftVersionInfo {
     pub protocol: i32,
 }
 
-pub const DEFAULT_TARGET_VERSION: &str = "1.21.1";
+pub const DEFAULT_TARGET_VERSION: &str = "1.21.11";
 pub const DEFAULT_TARGET_PROTOCOL: i32 = 767;
 
 pub const SUPPORTED_VERSIONS: &[MinecraftVersionInfo] = &[
+    MinecraftVersionInfo { name: "1.21.11", protocol: 767 },
     MinecraftVersionInfo { name: "1.21.4", protocol: 769 },
     MinecraftVersionInfo { name: "1.21.3", protocol: 768 },
     MinecraftVersionInfo { name: "1.21.2", protocol: 768 },
@@ -68,19 +69,19 @@ mod tests {
 
     #[test]
     fn test_version_resolution() {
-        // Multi-version enabled
-        let (name, proto) = resolve_version_for_client(767, "1.21.1", true);
-        assert_eq!(name, "CrabMC 1.21.1");
-        assert_eq!(proto, 767);
+        // Multi-version enabled with 1.21.11 target
+        let (name0, proto0) = resolve_version_for_client(767, "1.21.11", true);
+        assert_eq!(name0, "CrabMC 1.21.11");
+        assert_eq!(proto0, 767);
 
         // Client 1.20.4 (765)
-        let (name2, proto2) = resolve_version_for_client(765, "1.21.1", true);
+        let (name2, proto2) = resolve_version_for_client(765, "1.21.11", true);
         assert_eq!(name2, "CrabMC 1.20.4");
         assert_eq!(proto2, 765);
 
         // Multi-version disabled
-        let (name3, proto3) = resolve_version_for_client(765, "1.21.1", false);
-        assert_eq!(name3, "CrabMC 1.21.1");
+        let (name3, proto3) = resolve_version_for_client(765, "1.21.11", false);
+        assert_eq!(name3, "CrabMC 1.21.11");
         assert_eq!(proto3, 767);
     }
 }

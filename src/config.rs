@@ -39,7 +39,7 @@ impl Default for ServerConfig {
             difficulty: "easy".to_string(),
             gamemode: "survival".to_string(),
             white_list: false,
-            target_version: "1.21.1".to_string(),
+            target_version: "1.21.11".to_string(),
             multi_version: true,
             raw_properties: HashMap::new(),
         }
