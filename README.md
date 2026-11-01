@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/myzert/crabmc-server/actions"><img src="https://img.shields.io/github/actions/workflow/status/myzert/crabmc-server/ci.yml?branch=main&label=CI" alt="CI Status" /></a>
   <a href="https://github.com/myzert/crabmc-server/releases"><img src="https://img.shields.io/github/v/release/myzert/crabmc-server?label=Release" alt="Latest Release" /></a>
-  <img src="https://img.shields.io/badge/Minecraft-1.20.4-brightgreen.svg" alt="Minecraft 1.20.4" />
+  <img src="https://img.shields.io/badge/Minecraft-1.21.1%20(Multi--Version)-brightgreen.svg" alt="Minecraft 1.21.1 Multi-Version" />
   <img src="https://img.shields.io/badge/Rust-1.75%2B-orange.svg" alt="Rust Version" />
   <img src="https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg" alt="License" />
 </p>
@@ -37,16 +37,20 @@
 
 ## ✨ Fitur Utama
 
-- [x] **Minecraft Protocol 1.20.4 (Protocol 765)**:
+- [x] **Dukungan Multi-Version & Target 1.21.1 (Protocol 767)**:
+  - Otomatis beradaptasi dengan versi client Minecraft yang terhubung (1.8.x sampai 1.21.x / 1.21.4).
+  - Server List Ping (SLP) kompatibel dengan status hijau di multiplayer menu berbagai versi client!
+  - Target default: **1.21.1** (dapat diubah ke versi lain di `server.properties`).
+- [x] **Minecraft Protocol Core**:
   - VarInt & Minecraft String codec standar.
   - Handshake protocol parsing.
-  - Server List Ping (SLP) status response lengkap (MOTD warna, player count, custom version).
-  - Ping / Pong latency calculation.
-  - Login state handler & handshake validation.
+  - Dynamic Server List Ping (SLP) status response lengkap (MOTD warna, player count, custom version).
+  - Ping / Pong latency calculation akurat.
+  - Login state handler & handshake validation dengan deteksi versi client.
 - [x] **Konfigurasi `server.properties` Lengkap**:
   - Kompatibel dengan sintaks `server.properties` standar PaperMC & Vanilla.
   - Auto-generate default configuration jika file belum ada.
-  - Opsi: `server-ip`, `server-port`, `motd`, `max-players`, `online-mode`, `view-distance`, `simulation-distance`, `pvp`, `gamemode`, `difficulty`, dan lainnya.
+  - Opsi: `target-version`, `multi-version`, `server-ip`, `server-port`, `motd`, `max-players`, `online-mode`, `view-distance`, `simulation-distance`, `pvp`, `gamemode`, `difficulty`.
 - [x] **Sistem Plugin Modular**:
   - Plugin lifecycle: `on_enable`, `on_disable`, dan command dispatcher `on_command`.
   - Built-in plugin contoh (`CrabEssentials`) untuk demonstrasi.
@@ -115,6 +119,8 @@ pvp=true
 difficulty=easy
 gamemode=survival
 white-list=false
+target-version=1.21.1
+multi-version=true
 ```
 
 ---

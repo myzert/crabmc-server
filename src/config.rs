@@ -18,6 +18,8 @@ pub struct ServerConfig {
     pub difficulty: String,
     pub gamemode: String,
     pub white_list: bool,
+    pub target_version: String,
+    pub multi_version: bool,
     pub raw_properties: HashMap<String, String>,
 }
 
@@ -37,6 +39,8 @@ impl Default for ServerConfig {
             difficulty: "easy".to_string(),
             gamemode: "survival".to_string(),
             white_list: false,
+            target_version: "1.21.1".to_string(),
+            multi_version: true,
             raw_properties: HashMap::new(),
         }
     }
@@ -110,6 +114,12 @@ impl ServerConfig {
         if let Some(wl) = map.get("white-list").and_then(|p| p.parse().ok()) {
             config.white_list = wl;
         }
+        if let Some(target_ver) = map.get("target-version") {
+            config.target_version = target_ver.clone();
+        }
+        if let Some(multi_ver) = map.get("multi-version").and_then(|p| p.parse().ok()) {
+            config.multi_version = multi_ver;
+        }
 
         config.raw_properties = map;
         Ok(config)
@@ -133,6 +143,8 @@ pvp={}
 difficulty={}
 gamemode={}
 white-list={}
+target-version={}
+multi-version={}
 "#,
             self.server_ip,
             self.server_port,
@@ -146,7 +158,9 @@ white-list={}
             self.pvp,
             self.difficulty,
             self.gamemode,
-            self.white_list
+            self.white_list,
+            self.target_version,
+            self.multi_version
         );
 
         fs::write(path, content)?;

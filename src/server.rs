@@ -12,8 +12,6 @@ use tracing::{error, info, warn};
 
 pub const SERVER_NAME: &str = "CrabMC";
 pub const SERVER_VERSION: &str = "0.1.0-alpha";
-pub const MINECRAFT_VERSION: &str = "1.20.4";
-pub const PROTOCOL_VERSION: i32 = 765;
 
 pub struct CrabServer {
     config: Arc<ServerConfig>,
@@ -44,11 +42,15 @@ impl CrabServer {
 "#.bright_red().bold());
 
         println!(
-            "{} {} (MC: {}) - Protocol {}",
+            "{} {} (Target MC: {}, Multi-Version: {})",
             "Running:".bright_yellow(),
             format!("{} v{}", SERVER_NAME, SERVER_VERSION).bright_cyan().bold(),
-            MINECRAFT_VERSION.bright_green(),
-            PROTOCOL_VERSION
+            self.config.target_version.bright_green(),
+            if self.config.multi_version {
+                "ENABLED (1.8.x - 1.21.x)".bright_green()
+            } else {
+                "DISABLED".red()
+            }
         );
         println!(
             "{} {}",
@@ -70,6 +72,7 @@ impl CrabServer {
         let bind_addr = format!("{}:{}", self.config.server_ip, self.config.server_port);
         let listener = TcpListener::bind(&bind_addr).await?;
         info!("Starting Minecraft server on {}", bind_addr.bright_green().bold());
+        info!("Target Version: {} (Multi-Version: {})", self.config.target_version.bright_cyan(), self.config.multi_version);
         info!("PaperMC-compatible MOTD: {}", self.config.motd);
         info!("Max players: {}", self.config.max_players);
         info!("Online mode: {}", self.config.online_mode);
@@ -77,6 +80,8 @@ impl CrabServer {
 
         let running_clone = self.running.clone();
         let plugin_mgr_clone = self.plugin_mgr.clone();
+        let target_ver = self.config.target_version.clone();
+        let multi_ver = self.config.multi_version;
 
         // Spawn Console Input Handler (Stdin)
         tokio::spawn(async move {
@@ -117,10 +122,11 @@ impl CrabServer {
                             }
                             "version" | "ver" => {
                                 info!(
-                                    "This server is running {} version {} (Implementing Minecraft {})",
+                                    "This server is running {} version {} (Target MC: {}, Multi-Version: {})",
                                     SERVER_NAME.bright_cyan(),
                                     SERVER_VERSION.bright_yellow(),
-                                    MINECRAFT_VERSION.bright_green()
+                                    target_ver.bright_green(),
+                                    if multi_ver { "Active (1.8.x - 1.21.x)" } else { "Disabled" }
                                 );
                             }
                             _ => {
@@ -203,10 +209,10 @@ async fn handle_connection(
 
     match handshake.next_state {
         ConnectionState::Status => {
-            handle_status_state(&mut stream, &config, &online_count).await?;
+            handle_status_state(&mut stream, &config, &online_count, handshake.protocol_version).await?;
         }
         ConnectionState::Login => {
-            handle_login_state(&mut stream, &handshake).await?;
+            handle_login_state(&mut stream, &config, &handshake).await?;
         }
         _ => {}
     }
@@ -218,6 +224,7 @@ async fn handle_status_state(
     stream: &mut TcpStream,
     config: &ServerConfig,
     online_count: &Arc<AtomicU32>,
+    client_protocol: i32,
 ) -> anyhow::Result<()> {
     loop {
         let packet_len = match read_async_varint(stream).await {
@@ -239,10 +246,18 @@ async fn handle_status_state(
             0x00 => {
                 // Status Request -> send Status Response
                 let current_online = online_count.load(Ordering::Relaxed) as i32;
+
+                // Multi-version resolution
+                let (ver_name, protocol) = resolve_version_for_client(
+                    client_protocol,
+                    &config.target_version,
+                    config.multi_version,
+                );
+
                 let status_json = StatusResponseJson {
                     version: ServerVersionInfo {
-                        name: format!("CrabMC {}", MINECRAFT_VERSION),
-                        protocol: PROTOCOL_VERSION,
+                        name: ver_name,
+                        protocol,
                     },
                     players: PlayersInfo {
                         max: config.max_players,
@@ -278,6 +293,7 @@ async fn handle_status_state(
 
 async fn handle_login_state(
     stream: &mut TcpStream,
+    config: &ServerConfig,
     handshake: &HandshakePacket,
 ) -> anyhow::Result<()> {
     // Read Login Start packet (0x00)
@@ -290,10 +306,24 @@ async fn handle_login_state(
 
     if packet_id == 0x00 {
         let player_name = cursor.read_minecraft_string().unwrap_or_else(|_| "Player".to_string());
-        info!("Player '{}' attempting to connect (protocol: {})...", player_name.bright_cyan(), handshake.protocol_version);
+        let detected_version = find_version_by_protocol(handshake.protocol_version)
+            .unwrap_or(config.target_version.as_str());
+
+        info!(
+            "Player '{}' attempting to connect (MC: {}, Protocol: {})...",
+            player_name.bright_cyan(),
+            detected_version.bright_yellow(),
+            handshake.protocol_version
+        );
 
         let kick_msg = serde_json::json!({
-            "text": "\n🦀 §6§lCrabMC Server (PaperMC in Rust)\n\n§aConnected successfully to Rust engine!\n§7Server version: §b0.1.0-alpha §7(MC 1.20.4)\n\n§eWorld simulation and full play state are under active development.\n§dStar us on GitHub: §fgithub.com/myzert/crabmc-server\n"
+            "text": format!(
+                "\n🦀 §6§lCrabMC Server (PaperMC in Rust)\n\n§aConnected successfully to Rust engine!\n§7Server version: §b{} §7(Target MC: {})\n§eYour detected client: §f{} §7(Protocol {})\n§aMulti-version support: §2ACTIVE\n\n§eWorld simulation and play state are under active development.\n§dStar us on GitHub: §fgithub.com/myzert/crabmc-server\n",
+                SERVER_VERSION,
+                config.target_version,
+                detected_version,
+                handshake.protocol_version
+            )
         });
 
         let disconnect_bytes = encode_disconnect_login(&kick_msg.to_string());
